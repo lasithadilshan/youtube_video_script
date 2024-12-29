@@ -1,0 +1,5 @@
+streamlit
+pafy
+imutils
+opencv-python
+img2pdf
