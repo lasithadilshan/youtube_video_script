@@ -1,115 +1,59 @@
-import pafy
-import cv2
-import os
-import time
-import imutils
-import shutil
-import img2pdf
-import glob
-import streamlit as st
+import streamlit as st 
+from utils import generate_script
 
-# Set pafy to use yt-dlp as the backend
-pafy.backend_shared.backend = "yt-dlp"
-
-# Constants
-FRAME_RATE = 3  # No. of frames per second to process
-WARMUP = FRAME_RATE  # Initial frames to skip
-FGBG_HISTORY = FRAME_RATE * 15  # Background frames
-VAR_THRESHOLD = 16  # Threshold for background subtraction
-DETECT_SHADOWS = False  # Detect shadows or not
-MIN_PERCENT = 0.1  # Min percentage of frame difference for motion detection
-MAX_PERCENT = 3  # Max percentage of frame difference for motion detection
+# Applying Styling
+st.markdown("""
+<style>
+div.stButton > button:first-child {
+    background-color: #0099ff;
+    color:#ffffff;
+}
+div.stButton > button:hover {
+    background-color: #00ff00;
+    color:#FFFFFF;
+    }
+</style>""", unsafe_allow_html=True)
 
 
-def get_frames(url):
-    """Returns frames from a video at the given URL."""
-    video = pafy.new(url)
-    video_stream = video.getbest(preftype="mp4")
-    vs = cv2.VideoCapture(video_stream.url)
-    if not vs.isOpened():
-        raise Exception(f"Unable to open video stream: {video_stream.url}")
+# Creating Session State Variable
+if 'API_Key' not in st.session_state:
+    st.session_state['API_Key'] =''
+
+
+st.title('❤️ YouTube Script Writing Tool') 
+
+# Sidebar to capture the OpenAi API key
+st.sidebar.title("😎🗝️")
+st.session_state['API_Key']= st.sidebar.text_input("What's your API key?",type="password")
+st.sidebar.image('./Youtube.jpg',width=300, use_column_width=True)
+
+
+# Captures User Inputs
+prompt = st.text_input('Please provide the topic of the video',key="prompt")  # The box for the text prompt
+video_length = st.text_input('Expected Video Length 🕒 (in minutes)',key="video_length")  # The box for the text prompt
+creativity = st.slider('Creativity limit ✨ - (0 LOW || 1 HIGH)', 0.0, 1.0, 0.2,step=0.1)
+
+submit = st.button("Generate Script for me")
+
+
+if submit:
     
-    frame_time = 0
-    frame_count = 0
-    while True:
-        vs.set(cv2.CAP_PROP_POS_MSEC, frame_time * 1000)
-        frame_time += 1 / FRAME_RATE
-        ret, frame = vs.read()
-        if not ret:
-            break
-        frame_count += 1
-        yield frame_count, frame_time, frame
-    vs.release()
+    if st.session_state['API_Key']:
+        search_result,title,script = generate_script(prompt,video_length,creativity,st.session_state['API_Key'])
+        #Let's generate the script
+        st.success('Hope you like this script ❤️')
 
+        #Display Title
+        st.subheader("Title:🔥")
+        st.write(title)
 
-def detect_unique_screenshots(video_url, output_folder):
-    """Detect and save unique screenshots."""
-    fgbg = cv2.createBackgroundSubtractorMOG2(
-        history=FGBG_HISTORY,
-        varThreshold=VAR_THRESHOLD,
-        detectShadows=DETECT_SHADOWS
-    )
-    captured = False
-    (W, H) = (None, None)
-    screenshot_count = 0
+        #Display Video Script
+        st.subheader("Your Video Script:📝")
+        st.write(script)
 
-    for frame_count, frame_time, frame in get_frames(video_url):
-        orig = frame.copy()
-        frame = imutils.resize(frame, width=600)
-        mask = fgbg.apply(frame)
-
-        if W is None or H is None:
-            (H, W) = mask.shape[:2]
-
-        p_diff = (cv2.countNonZero(mask) / float(W * H)) * 100
-
-        if p_diff < MIN_PERCENT and not captured and frame_count > WARMUP:
-            captured = True
-            filename = f"{screenshot_count:03}_{round(frame_time/60, 2)}.png"
-            path = os.path.join(output_folder, filename)
-            cv2.imwrite(path, orig)
-            screenshot_count += 1
-        elif captured and p_diff >= MAX_PERCENT:
-            captured = False
-
-
-def initialize_output_folder():
-    """Clean or create the output folder."""
-    root_dir = os.getcwd()
-    output_dir = os.path.join(root_dir, "output")
-    if os.path.exists(output_dir):
-        shutil.rmtree(output_dir)
-    os.makedirs(output_dir, exist_ok=True)
-    return output_dir
-
-
-def convert_screenshots_to_pdf(output_folder):
-    """Convert PNG screenshots to a single PDF."""
-    output_pdf_path = os.path.join(output_folder, "output.pdf")
-    with open(output_pdf_path, "wb") as f:
-        f.write(img2pdf.convert(sorted(glob.glob(f"{output_folder}/*.png"))))
-    return output_pdf_path
-
-
-# Streamlit App
-if __name__ == "__main__":
-    st.title("YouTube Video to PDF Converter")
-    video_url = st.text_input("Enter the URL of a YouTube video")
-
-    if st.button("Convert"):
-        try:
-            output_folder = initialize_output_folder()
-            detect_unique_screenshots(video_url, output_folder)
-            pdf_path = convert_screenshots_to_pdf(output_folder)
-            st.success("PDF created successfully!")
-
-            with open(pdf_path, "rb") as pdf_file:
-                PDFbyte = pdf_file.read()
-            st.download_button(
-                label="Download PDF",
-                data=PDFbyte,
-                file_name="converted_video.pdf",
-                mime="application/pdf"
-            )
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
+        #Display Search Engine Result
+        st.subheader("Check Out - DuckDuckGo Search:🔍")
+        with st.expander('Show me 👀'): 
+            st.info(search_result)
+    else:
+        st.error("Ooopssss!!! Please provide API key.....")
