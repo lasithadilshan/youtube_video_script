@@ -1,4 +1,5 @@
 streamlit
+yt-dlp
 pafy
 imutils
 opencv-python
