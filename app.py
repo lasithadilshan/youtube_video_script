@@ -1,5 +1,4 @@
 import pafy
-import yt_dlp
 import cv2
 import os
 import time
