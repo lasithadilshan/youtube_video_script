@@ -3,9 +3,3 @@ pafy
 imutils
 opencv-python
 img2pdf
-cv2
-os
-time
-shutil
-glob
-base64
